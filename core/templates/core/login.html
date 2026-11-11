@@ -1,0 +1,80 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign in | PSC Python Contest</title>
+<link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body class="auth-page">
+<div class="auth-shell">
+  <section class="auth-visual">
+    <div class="auth-orb orb-one"></div>
+    <div class="auth-orb orb-two"></div>
+    <div class="auth-orb orb-three"></div>
+
+    <div class="auth-visual-inner">
+      <div class="auth-kicker">The Unity University</div>
+      <img class="auth-logo" src="{% static 'img/unity-logo.png' %}" alt="The Unity University logo" onerror="this.style.display='none'">
+      <div class="auth-faculty">Faculty of Computing and Information Technology</div>
+
+      <h1>Problem Solving Competition</h1>
+    </div>
+  </section>
+
+  <section class="auth-panel">
+    <form class="auth-card" method="post" id="loginForm">
+      {% csrf_token %}
+      <div class="auth-card-head">
+        <h2>Welcome back</h2>
+        <p>Sign in with your username to enter the contest.</p>
+      </div>
+
+      {% if error %}
+        <div class="alert alert-red auth-alert">{{ error }}</div>
+      {% endif %}
+
+      <label class="auth-label" for="username">Username</label>
+      <div class="auth-field">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/></svg>
+        <input type="text" name="username" id="username" placeholder="Your group name" autocomplete="username" required autofocus>
+      </div>
+
+      <label class="auth-label" for="password">Password</label>
+      <div class="auth-field">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+        <input type="password" name="password" id="password" placeholder="Enter your password" autocomplete="current-password" required>
+        <button type="button" class="auth-eye" id="togglePassword" aria-label="Show password">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+      </div>
+
+      <button type="submit" class="btn btn-primary auth-submit" id="loginBtn">
+        <span class="btn-text">Enter contest</span>
+        <span class="btn-arrow">→</span>
+      </button>
+    </form>
+  </section>
+</div>
+
+<script>
+const passwordInput = document.getElementById("password");
+const togglePassword = document.getElementById("togglePassword");
+const loginForm = document.getElementById("loginForm");
+const loginBtn = document.getElementById("loginBtn");
+
+togglePassword.addEventListener("click", () => {
+  const show = passwordInput.type === "password";
+  passwordInput.type = show ? "text" : "password";
+  togglePassword.classList.toggle("is-visible", show);
+  togglePassword.setAttribute("aria-label", show ? "Hide password" : "Show password");
+});
+
+loginForm.addEventListener("submit", () => {
+  loginBtn.disabled = true;
+  loginBtn.querySelector(".btn-text").textContent = "Signing in...";
+});
+</script>
+</body>
+</html>

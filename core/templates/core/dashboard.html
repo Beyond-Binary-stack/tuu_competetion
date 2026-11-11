@@ -1,0 +1,153 @@
+{% extends "core/base.html" %}
+{% block title %}Admin Dashboard{% endblock %}
+{% block content %}
+<div class="admin-head">
+  <div>
+    <h1>Live Control Room</h1>
+    <p class="muted">Contest control panel — The Unity University, Faculty of Computing and IT</p>
+  </div>
+  <div class="admin-links">
+    <a href="{% url 'admin:index' %}" class="btn btn-ghost">Django Admin</a>
+    <a href="{% url 'results_screen' %}" class="btn btn-primary" target="_blank">Results screen (projector)</a>
+    <a href="{% url 'groups_manage' %}" class="btn btn-ghost">Manage groups</a>
+    <a href="{% url 'leaderboard' %}" class="btn btn-ghost">Leaderboard</a>
+    <a href="{% url 'logout' %}" class="btn btn-danger">Logout</a>
+  </div>
+</div>
+
+{% if messages %}
+  {% for m in messages %}
+    <div class="alert {% if m.tags == 'error' %}alert-red{% else %}alert-green{% endif %}">{{ m.message }}</div>
+  {% endfor %}
+{% endif %}
+
+<div class="live-console">
+  <div class="live-main">
+    <div class="live-state">
+      <span class="badge badge-{{ contest.state_label }} live-badge" id="contestState">{{ contest.state_label|title }}</span>
+      <div class="live-clock mono" id="remLabel">{{ contest.remaining_seconds }}</div>
+      <div class="live-sub">Time remaining · Duration {{ contest.duration_seconds }}s · Paused {{ contest.paused_seconds }}s</div>
+    </div>
+
+    <div class="live-progress">
+      <div class="live-progress-label"><span>Contest progress</span><b id="contestPct">{{ stats.contest_pct }}%</b></div>
+      <div class="live-bar"><span id="contestBar" style="width:{{ stats.contest_pct }}%"></span></div>
+      <div class="live-progress-hint">Elapsed {{ contest.elapsed_seconds }}s of {{ contest.duration_seconds }}s</div>
+    </div>
+
+    <form method="post" action="{% url 'contest_action' %}" class="live-actions">
+      {% csrf_token %}
+      <input type="number" name="minutes" value="{% widthratio contest.duration_seconds 60 1 %}" min="1" class="admin-minutes" title="Duration in minutes">
+      <button name="action" value="duration" class="btn btn-ghost">Set minutes</button>
+      {% if debug %}<button name="action" value="simulate" class="btn btn-ghost">Simulate</button>{% endif %}
+      {% if contest.state_label == "not_started" %}
+        <button name="action" value="start" class="btn btn-primary">Start</button>
+      {% elif contest.state_label == "running" %}
+        <button name="action" value="pause" class="btn" style="background:#b45309;color:#fff">Pause</button>
+      {% elif contest.state_label == "paused" %}
+        <button name="action" value="resume" class="btn btn-primary">Resume</button>
+      {% elif contest.state_label == "ended" %}
+        <button name="action" value="reset" class="btn btn-primary" onclick="return confirm('Start a new round? This deletes ALL submissions and saved code.')">New Round</button>
+      {% endif %}
+      <button name="action" value="reset" class="btn btn-danger" onclick="return confirm('Reset ALL progress and restart timer?')">Reset all</button>
+    </form>
+  </div>
+
+  <div class="live-stats">
+    <div class="live-stat"><span>Groups</span><b>{{ stats.groups }}</b></div>
+    <div class="live-stat"><span>Solves</span><b>{{ stats.solves }}<small>/{{ stats.possible }}</small></b></div>
+    <div class="live-stat"><span>Submissions</span><b>{{ stats.submissions }}</b></div>
+    <div class="live-stat"><span>Accepted</span><b>{{ stats.accepted }}<small>{{ stats.accept_rate }}%</small></b></div>
+  </div>
+
+  <div class="live-standings">
+    <div class="live-standings-title">Live standings</div>
+    {% for r in top_rows %}
+    <div class="standing-row">
+      <span class="s-rank rank-{{ forloop.counter }}">#{{ forloop.counter }}</span>
+      <span class="s-name">{{ r.group.name }}</span>
+      <span class="s-bar"><span style="width:{{ r.pct }}%"></span></span>
+      <span class="s-pct">{{ r.solved }}/{{ problems|length }} · {{ r.pct }}%</span>
+    </div>
+    {% empty %}
+    <div class="muted" style="color:rgba(255,255,255,.6)">No groups yet.</div>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="dashboard-tables">
+  <div>
+    <h2>Groups</h2>
+    <table>
+      <thead><tr><th>#</th><th>Group</th><th>Solved</th><th>Progress</th><th>Easy</th><th>Med</th><th>Hard</th><th>Tries</th><th>Devices</th><th>Last solve at</th></tr></thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td class="rank rank-{{ forloop.counter }}">#{{ forloop.counter }}</td>
+          <td><b>{{ r.group.name }}</b></td>
+          <td><b>{{ r.solved }}</b> / {{ problems|length }}</td>
+          <td style="min-width:120px">
+            <div class="mini-bar"><span style="width:{{ r.pct }}%"></span></div>
+            <span class="muted" style="font-size:11px">{{ r.pct }}%</span>
+          </td>
+          <td>{{ r.per_level.easy }}</td><td>{{ r.per_level.medium }}</td><td>{{ r.per_level.hard }}</td>
+          <td>{{ r.tries }}</td>
+          <td>{{ r.devices }}</td>
+          <td class="mono">{% if r.reach_time != None %}{{ r.reach_time }}s{% else %}-{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <h2 style="margin-top:26px">Recent submissions</h2>
+    <table>
+      <thead><tr><th>Time</th><th>Group</th><th>Problem</th><th>Status</th><th>At</th></tr></thead>
+      <tbody>
+        {% for s in recent %}
+        <tr>
+          <td class="mono">{{ s.created_at|date:"H:i:s" }}</td>
+          <td>{{ s.group.name }}</td>
+          <td>{{ s.problem.title }}</td>
+          <td>{% if s.status == "accepted" %}<span style="color:var(--green-mid);font-weight:700">Accepted</span>{% else %}<span style="color:var(--red-mid)">{{ s.status }}</span>{% endif %}</td>
+          <td class="mono">{{ s.contest_elapsed }}s</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p><a href="{% url 'leaderboard' %}">View student leaderboard →</a></p>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function fmtClock(s){
+  s = Math.max(0, s | 0);
+  const h = String(Math.floor(s/3600)).padStart(2,"0");
+  const m = String(Math.floor(s/60)%60).padStart(2,"0");
+  const sec = String(s%60).padStart(2,"0");
+  return h+":"+m+":"+sec;
+}
+let st = "{{ contest.state_label }}", rem = {{ contest.remaining_seconds }}, elapsed = {{ contest.elapsed_seconds }};
+function render(){
+  document.getElementById("remLabel").textContent =
+    st === "not_started" ? "--:--:--" : st === "ended" ? "00:00:00" : fmtClock(rem);
+  const badge = document.getElementById("contestState");
+  badge.textContent = st.replace("_"," ").replace(/\b\w/g, c=>c.toUpperCase());
+  badge.className = "badge badge-" + st;
+  const total = elapsed + rem;
+  const pct = total ? Math.round(elapsed / total * 100) : 0;
+  document.getElementById("contestPct").textContent = pct + "%";
+  document.getElementById("contestBar").style.width = pct + "%";
+}
+async function tick(){
+  try{
+    const r = await fetch("{% url 'api_leaderboard' %}");
+    const d = await r.json();
+    rem = d.contest.remaining; st = d.contest.state; elapsed = d.contest.elapsed;
+    render();
+  }catch(e){}
+}
+setInterval(()=>{ if(st === "running" && rem > 0){ rem--; elapsed++; render(); } }, 1000);
+render(); tick(); setInterval(tick, 5000);
+</script>
+{% endblock %}

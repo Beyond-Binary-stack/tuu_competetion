@@ -1,0 +1,22 @@
+# Secrets / local config
+.env
+.secret_key
+
+# Database & runtime artifacts
+db.sqlite3
+backups/
+logs/
+staticfiles/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# OS / editor
+Thumbs.db
+.DS_Store
+.idea/
+.vscode/

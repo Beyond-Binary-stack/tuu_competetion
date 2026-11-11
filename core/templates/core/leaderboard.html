@@ -1,0 +1,70 @@
+{% extends "core/base.html" %}
+{% block title %}Leaderboard{% endblock %}
+{% block content %}
+<h1>Leaderboard</h1>
+<p class="muted">Most solved first. If tied, the group that reached that count first wins. Updates live.</p>
+<div class="contest-bar">
+  <span class="stat">Time left: <b id="contestTimer">--:--:--</b></span>
+  <span class="badge badge-{{ contest.state_label }}" id="contestState">{{ contest.state_label|title }}</span>
+</div>
+<table id="board">
+  <thead>
+    <tr>
+      <th>Rank</th><th>Group</th><th>Solved</th>
+      <th>Easy</th><th>Medium</th><th>Hard</th><th>Tries</th><th>Reached at</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in rows %}
+    <tr class="{% if r.group.name == group.name %}me{% endif %}">
+      <td class="rank rank-{{ forloop.counter }}">#{{ forloop.counter }}</td>
+      <td><b>{{ r.group.name }}</b></td>
+      <td><b>{{ r.solved }}</b> / {{ problems|length }}</td>
+      <td>{{ r.per_level.easy }}</td>
+      <td>{{ r.per_level.medium }}</td>
+      <td>{{ r.per_level.hard }}</td>
+      <td>{{ r.tries }}</td>
+      <td class="mono">{% if r.reach_time != None %}{{ r.reach_time }}s{% else %}-{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
+{% block scripts %}
+<script>
+function fmtTime(s){ if(s==null) return "-"; return Math.floor(s/60)+":"+String(s%60).padStart(2,"0"); }
+function fmtClock(s){
+  s = Math.max(0, s | 0);
+  return String(Math.floor(s/3600)).padStart(2,"0")+":"+String(Math.floor(s/60)%60).padStart(2,"0")+":"+String(s%60).padStart(2,"0");
+}
+const MY_GROUP = "{{ group.name|default:''|escapejs }}";
+let contestState = "{{ contest.state_label }}", remaining = {{ contest.remaining_seconds }};
+function esc(s){ const d=document.createElement("div"); d.textContent=s; return d.innerHTML; }
+function renderTimer(){
+  const st = contestState;
+  document.getElementById("contestTimer").textContent =
+    st === "not_started" ? "--:--:--" : st === "ended" ? "Ended" : fmtClock(remaining);
+  const badge = document.getElementById("contestState");
+  badge.textContent = st.replace("_"," ").replace(/\b\w/g,c=>c.toUpperCase());
+  badge.className = "badge badge-" + st;
+}
+async function refreshBoard(){
+  try{
+    const r = await fetch("{% url 'api_leaderboard' %}");
+    if(r.redirected){ location.href = "{% url 'login' %}"; return; }
+    const d = await r.json();
+    remaining = d.contest.remaining; contestState = d.contest.state;
+    renderTimer();
+    const tb = document.querySelector("#board tbody");
+    tb.innerHTML = d.rows.map((r,i)=>`<tr class="${r.name === MY_GROUP ? "me" : ""}">
+      <td class="rank rank-${i+1}">#${i+1}</td>
+      <td><b>${esc(r.name)}</b></td>
+      <td><b>${r.solved}</b> / ${d.problems.length}</td>
+      <td>${r.per_level.easy||0}</td><td>${r.per_level.medium||0}</td><td>${r.per_level.hard||0}</td>
+      <td>${r.tries}</td><td class="mono">${fmtTime(r.reach_time)}</td></tr>`).join("");
+  }catch(e){}
+}
+setInterval(()=>{ if(contestState === "running"){ remaining = Math.max(0, remaining-1); renderTimer(); } }, 1000);
+renderTimer(); refreshBoard(); setInterval(refreshBoard, 5000);
+</script>
+{% endblock %}

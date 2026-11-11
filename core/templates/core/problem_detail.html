@@ -1,0 +1,168 @@
+{% extends "core/base.html" %}
+{% block title %}{{ problem.title }}{% endblock %}
+{% block content %}
+<div class="problem-layout">
+  <div class="statement panel">
+    <h1>{{ problem.seq }}. {{ problem.title }}
+      <span class="diff diff-{{ problem.level }}">{{ problem.level }}</span>
+    </h1>
+    {% if status.solved %}
+      <div class="alert alert-green">✓ Solved! (contest time: {{ status.solved_elapsed }}s)</div>
+    {% elif status.tries %}
+      <div class="alert" style="background:#fdf0d5;color:#92600a;border:1px solid #ecd9a0">Attempted {{ status.tries }} time(s). Keep trying!</div>
+    {% endif %}
+    <div>{{ problem.statement|safe }}</div>
+
+    {% if problem.input_format %}
+    <h3>Input</h3><p>{{ problem.input_format }}</p>
+    {% endif %}
+    {% if problem.output_format %}
+    <h3>Output</h3><p>{{ problem.output_format }}</p>
+    {% endif %}
+    <h3>Example</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div><div class="muted" style="font-size:12px">Input</div><pre>{{ sample_input }}</pre></div>
+      <div><div class="muted" style="font-size:12px">Output</div><pre>{{ sample_output }}</pre></div>
+    </div>
+    {% if problem.hint %}<div class="hint-box" style="margin-top:14px"><b>Hint:</b> {{ problem.hint }}</div>{% endif %}
+  </div>
+
+  <div>
+    <div class="editor-panel">
+      <div class="editor-toolbar">
+        <span class="fname">main.py</span>
+        <div class="spacer"></div>
+        <button class="btn btn-ghost" id="resetBtn" style="color:#8b949e;border-color:#30363d">Reset</button>
+      </div>
+      <textarea id="codeArea">{{ saved_code }}</textarea>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:12px">
+      <button class="btn" id="runBtn" style="background:#1d4ed8;color:#fff">▶ Run (sample)</button>
+      <button class="btn btn-primary" id="submitBtn">Submit</button>
+      <span class="muted" id="saveState" style="align-self:center;font-size:12px"></span>
+    </div>
+    <div class="result-panel" id="resultPanel">
+      <div class="muted">Run your code on the sample, or Submit to check all test cases.</div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const SLUG = "{{ problem.slug }}";
+const editor = CodeMirror.fromTextArea(document.getElementById("codeArea"), {
+  mode: "python", theme: "material-darker", lineNumbers: true,
+  indentUnit: 4, tabSize: 4, matchBrackets: true,
+  extraKeys: { Tab: cm => cm.somethingSelected() ? cm.indentSelection("add") : cm.replaceSelection("    ", "end") },
+});
+editor.setSize(null, 380);
+
+let saveTimer = null;
+editor.on("change", () => {
+  document.getElementById("saveState").textContent = "saving...";
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveCode, 1500);
+});
+
+async function saveCode(){
+  const fd = new FormData();
+  fd.append("code", editor.getValue());
+  try{
+    await fetch(`/problem/${SLUG}/save/`, {method:"POST", body:fd, headers:{"X-CSRFToken": getCookie("csrftoken")}});
+    document.getElementById("saveState").textContent = "saved ✓";
+  }catch(e){ document.getElementById("saveState").textContent = ""; }
+}
+function getCookie(n){ const m=document.cookie.match(new RegExp("(^| )"+n+"=([^;]+)")); return m?m[2]:""; }
+
+function esc(s){ const d=document.createElement("div"); d.textContent=s; return d.innerHTML; }
+
+function showVerdict(kind, title, chips, body){
+  document.getElementById("resultPanel").innerHTML =
+    `<div class="verdict ${kind}">${title}</div>` +
+    (chips ? `<div class="test-chips">${chips}</div>` : "") + body;
+}
+
+async function post(action, code){
+  const fd = new FormData();
+  fd.append("code", code);
+  let r;
+  try{
+    r = await fetch(`/problem/${SLUG}/${action}/`, {method:"POST", body:fd, headers:{"X-CSRFToken": getCookie("csrftoken")}});
+  }catch(e){
+    return {error: "Connection problem. Check your network and try again."};
+  }
+  if(r.status === 401){ location.href = "{% url 'login' %}"; return {error: "Please log in again."}; }
+  try{ return await r.json(); }
+  catch(e){ return {error: `Server error (${r.status}). Please try again.`}; }
+}
+
+let busy = false;
+function setBusy(b){
+  busy = b;
+  document.getElementById("runBtn").disabled = b;
+  document.getElementById("submitBtn").disabled = b;
+}
+function guarded(fn){
+  return async ()=>{
+    if(busy) return;
+    setBusy(true);
+    try{ await fn(); } finally{ setBusy(false); }
+  };
+}
+
+async function runSample(){
+  showVerdict("run", "Running...", "", "");
+  const d = await post("run", editor.getValue());
+  if(d.error === "contest_not_open"){ showVerdict("wa","The contest is not open right now.","",""); return; }
+  if(d.error){ showVerdict("err","Error","",`<pre class="err-box">${esc(d.error)}</pre>`); return; }
+  const ok = !!d.passed;
+  if(d.status === "timeout"){ showVerdict("tle","Time Limit Exceeded","",`<p class="muted">Your code took more than 3 seconds. Check for an endless loop.</p>`); return; }
+  if(d.status === "blocked"){ showVerdict("wa","Blocked","",`<p>${esc(d.err)}</p>`); return; }
+  const verdict = ok ? ["ok","Sample passed ✓"] : ["wa","Wrong Answer"];
+  const chips = `<span class="chip ${ok?"pass":"fail"}">Sample: ${ok?"Passed":"Failed"}</span>`;
+  const body = `<div class="cmp-grid">
+    <div><div class="lbl">Input</div><pre>${esc(d.input)}</pre></div>
+    <div><div class="lbl">Your output</div><pre>${esc(d.out)}</pre></div>
+    <div><div class="lbl">Expected</div><pre>${esc(d.expected)}</pre></div></div>
+    ${d.err ? `<pre class="err-box" style="margin-top:10px">${esc(d.err)}</pre>` : ""}`;
+  showVerdict(verdict[0], verdict[1], chips, body);
+}
+
+async function submit(){
+  showVerdict("run", "Judging...", "", "");
+  const d = await post("submit", editor.getValue());
+  if(d.error){
+    const msg = d.error === "contest_not_open" ? "The contest is not open right now." : d.error;
+    showVerdict("wa", msg, "", ""); return;
+  }
+  const label = {accepted:"Accepted ✓", wrong:"Wrong Answer", error:"Error", timeout:"Time Limit Exceeded", blocked:"Blocked code"};
+  const cls = d.verdict === "accepted" ? "ok" : "wa";
+  let chips = "";
+  (d.tests||[]).forEach((t,i)=>{
+    const c = t.status === "pass" ? "pass" : "fail";
+    const txt = {pass:"Passed", wrong:"Wrong", error:"Error", timeout:"Time Limit", blocked:"Blocked"}[t.status];
+    chips += `<span class="chip ${c}">Test ${i+1}: ${txt}</span>`;
+  });
+  let body = "";
+  if(d.verdict === "accepted"){
+    body = `<p class="muted">All test cases passed. Great job!</p>`;
+  } else if(d.verdict === "wrong" && d.wrong){
+    body = `<p class="muted">Check the failing test case and try again. No penalty!</p>`;
+  } else if(d.verdict === "error"){
+    body = `<pre class="err-box">${esc(d.error||"")}</pre>`;
+  } else if(d.verdict === "timeout"){
+    body = `<p class="muted">Your code took more than 3 seconds. Check for an endless loop.</p>`;
+  } else if(d.verdict === "blocked"){
+    body = `<p>${esc(d.message||"")}</p>`;
+  }
+  showVerdict(cls, label[d.verdict] || d.verdict, chips, body);
+  if(d.verdict === "accepted") setTimeout(()=>location.reload(), 1200);
+}
+
+const STARTER = `{{ problem.starter_code|escapejs }}`;
+document.getElementById("runBtn").onclick = guarded(runSample);
+document.getElementById("submitBtn").onclick = guarded(submit);
+document.getElementById("resetBtn").onclick = ()=>{ if(confirm("Reset code to starter?")){ editor.setValue(STARTER); saveCode(); } };
+</script>
+{% endblock %}

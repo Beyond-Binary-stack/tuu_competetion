@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}PSC Python Contest{% endblock %} | Unity University</title>
+{% load static %}
+<link rel="stylesheet" href="{% static 'vendor/codemirror/codemirror.min.css' %}">
+<link rel="stylesheet" href="{% static 'vendor/codemirror/theme/material-darker.min.css' %}">
+<link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-name">THE UNITY UNIVERSITY</div>
+    <div class="brand-sub">Faculty of Computing and Information Technology</div>
+  </div>
+  <nav class="topnav">
+    {% if group or request.user.is_authenticated %}
+      {% if not request.user.is_staff %}
+        <a href="{% url 'problems' %}" class="{% if request.resolver_match.url_name == 'problems' or request.resolver_match.url_name == 'problem' %}active{% endif %}">Problems</a>
+        <a href="{% url 'leaderboard' %}" class="{% if request.resolver_match.url_name == 'leaderboard' %}active{% endif %}">Leaderboard</a>
+      {% endif %}
+      {% if request.user.is_staff %}
+        <a href="{% url 'dashboard' %}" class="{% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">Dashboard</a>
+        <a href="{% url 'admin:index' %}">Admin</a>
+      {% endif %}
+      <a href="{% url 'logout' %}" class="logout">Logout</a>
+    {% endif %}
+  </nav>
+</header>
+
+<main class="container">
+{% block content %}{% endblock %}
+</main>
+
+<footer class="footer">
+  PSC Python Problem Solving Competition
+</footer>
+
+<script src="{% static 'vendor/codemirror/codemirror.min.js' %}"></script>
+<script src="{% static 'vendor/codemirror/mode/python/python.min.js' %}"></script>
+{% block scripts %}{% endblock %}
+{% if group and not request.user.is_staff %}{% include "core/_student_overlay.html" %}{% endif %}
+</body>
+</html>

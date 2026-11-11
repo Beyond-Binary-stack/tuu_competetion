@@ -1,0 +1,74 @@
+{% load static %}
+<div class="psc-overlay" id="pscOverlay" hidden>
+  <div class="psc-overlay-card" id="pscOverlayCard">
+    <div class="psc-overlay-icon" id="pscOverlayIcon"></div>
+    <h1 id="pscOverlayTitle"></h1>
+    <p class="psc-overlay-text" id="pscOverlayText"></p>
+    <div class="psc-podium" id="pscOverlayPodium"></div>
+    <div class="psc-overlay-actions">
+      <a class="btn btn-ghost" href="{% url 'leaderboard' %}" id="pscOverlayBoard">View leaderboard</a>
+      <button class="btn btn-primary" id="pscOverlayClose">OK</button>
+    </div>
+  </div>
+</div>
+<script src="{% static 'js/confetti.js' %}"></script>
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  const esc = s => { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; };
+  const medal = ["🥇", "🥈", "🥉"];
+  let shown = null;
+
+  function key(d, kind){ return "psc-dismissed-" + d.round + "-" + kind; }
+
+  function show(d, kind){
+    if(shown === kind || localStorage.getItem(key(d, kind))) return;
+    shown = kind;
+    const card = $("pscOverlayCard");
+    card.className = "psc-overlay-card";
+    $("pscOverlayPodium").innerHTML = "";
+    $("pscOverlayBoard").hidden = false;
+    if(kind === "finished"){
+      $("pscOverlayIcon").textContent = "🎉";
+      $("pscOverlayTitle").textContent = `You solved all ${d.total} problems!`;
+      $("pscOverlayText").textContent = "Great job! The winner will be announced when the contest time is over.";
+      Confetti.burst();
+    } else {
+      const r = d.results || {}, me = d.me || {};
+      const won = r.winner && r.winner === me.name;
+      if(won){
+        card.classList.add("winner");
+        $("pscOverlayIcon").textContent = "🏆";
+        $("pscOverlayTitle").textContent = "Congratulations!";
+        $("pscOverlayText").innerHTML = `<b>${esc(me.name)}</b>, you are the winners of the contest!<br>You solved ${me.solved} / ${d.total} problems.`;
+        Confetti.start();
+      } else {
+        $("pscOverlayIcon").textContent = "🏁";
+        $("pscOverlayTitle").textContent = "The contest is over";
+        const rank = me.rank ? `Your rank: <b>#${me.rank}</b> · ` : "";
+        $("pscOverlayText").innerHTML = (r.winner ? `The winner is <b>${esc(r.winner)}</b>.<br>` : "") +
+          `${rank}You solved ${me.solved || 0} / ${d.total} problems. Well done!`;
+      }
+      $("pscOverlayPodium").innerHTML = (r.podium || []).map((p, i) =>
+        `<div class="psc-podium-row${p.name === me.name ? " me" : ""}"><span>${medal[i] || "#" + p.rank}</span><b>${esc(p.name)}</b><small>${p.solved} / ${d.total}</small></div>`).join("");
+    }
+    $("pscOverlay").hidden = false;
+    $("pscOverlayClose").onclick = () => {
+      localStorage.setItem(key(d, kind), "1");
+      $("pscOverlay").hidden = true;
+      Confetti.stop();
+    };
+  }
+
+  async function poll(){
+    try{
+      const r = await fetch("{% url 'api_status' %}");
+      if(r.redirected) return;
+      const d = await r.json();
+      if(d.state === "ended") show(d, "ended");
+      else if(d.me && d.total && d.me.solved >= d.total) show(d, "finished");
+    }catch(e){}
+  }
+  poll(); setInterval(poll, 5000);
+})();
+</script>

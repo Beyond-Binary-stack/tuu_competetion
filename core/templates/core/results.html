@@ -1,0 +1,74 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Results | PSC Python Contest</title>
+<link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body class="results-screen">
+<a class="rs-back" href="{% url 'dashboard' %}">← Dashboard</a>
+<div id="rsWaiting">
+  <div class="rs-sub">The Unity University · Problem Solving Competition</div>
+  <h1 id="rsTitle">Time remaining</h1>
+  <div class="rs-clock" id="rsClock">--:--:--</div>
+  <div class="rs-sub" id="rsNote">The winner will be announced when the time is up.</div>
+</div>
+<div id="rsResults" hidden>
+  <div class="rs-trophy">🏆</div>
+  <div class="rs-sub">The winner is</div>
+  <div class="rs-winner" id="rsWinner"></div>
+  <div class="rs-sub" id="rsWinnerInfo"></div>
+  <div class="rs-places" id="rsPlaces"></div>
+</div>
+<script src="{% static 'js/confetti.js' %}"></script>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; };
+let state = "{{ contest.state_label }}", remaining = {{ contest.remaining_seconds }}, celebrated = false;
+
+function fmt(s){
+  s = Math.max(0, s | 0);
+  return [Math.floor(s / 3600), Math.floor(s / 60) % 60, s % 60].map(x => String(x).padStart(2, "0")).join(":");
+}
+function renderWaiting(){
+  $("rsWaiting").hidden = false; $("rsResults").hidden = true;
+  if(state === "not_started"){
+    $("rsTitle").textContent = "Get ready!"; $("rsClock").textContent = "--:--:--";
+    $("rsNote").textContent = "The contest will start soon.";
+  } else {
+    $("rsTitle").textContent = state === "paused" ? "Contest paused" : "Time remaining";
+    $("rsClock").textContent = fmt(remaining);
+    $("rsNote").textContent = "The winner will be announced when the time is up.";
+  }
+}
+function renderResults(d){
+  const r = d.results || {}, podium = r.podium || [];
+  $("rsWaiting").hidden = true; $("rsResults").hidden = false;
+  if(!podium.length){
+    $("rsWinner").textContent = "No winner";
+    $("rsWinnerInfo").textContent = "No group solved a problem.";
+    $("rsPlaces").innerHTML = "";
+    return;
+  }
+  $("rsWinner").textContent = podium[0].name;
+  $("rsWinnerInfo").textContent = `${podium[0].solved} / ${d.total} problems solved`;
+  const medal = ["🥇", "🥈", "🥉"];
+  $("rsPlaces").innerHTML = podium.map((p, i) =>
+    `<div class="rs-place"><div class="rs-medal">${medal[i]}</div><b>${esc(p.name)}</b>${p.solved} / ${d.total} solved</div>`).join("");
+  if(!celebrated){ celebrated = true; Confetti.start(); setTimeout(() => Confetti.stop(), 15000); }
+}
+async function poll(){
+  try{
+    const d = await (await fetch("{% url 'api_status' %}")).json();
+    state = d.state; remaining = d.remaining;
+    if(state === "ended") renderResults(d);
+    else { celebrated = false; renderWaiting(); }
+  }catch(e){}
+}
+setInterval(() => { if(state === "running" && remaining > 0){ remaining--; $("rsClock").textContent = fmt(remaining); if(remaining === 0) poll(); } }, 1000);
+renderWaiting(); poll(); setInterval(poll, 5000);
+</script>
+</body>
+</html>

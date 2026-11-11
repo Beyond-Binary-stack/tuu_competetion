@@ -1,0 +1,91 @@
+{% extends "core/base.html" %}
+{% block title %}Problems{% endblock %}
+{% block content %}
+<div class="contest-bar">
+  <span class="stat">Group: <b>{{ group.name }}</b></span>
+  <span class="stat">Solved: <b id="solvedCount">{{ solved_count }}</b> / {{ total }}</span>
+  <span class="stat">Time left: <b id="contestTimer">--:--:--</b></span>
+  <span class="badge badge-{{ contest.state_label }}" id="contestState">{{ contest.state_label|title }}</span>
+</div>
+
+{% if waiting %}
+<div class="panel" style="text-align:center;padding:40px 20px">
+  <h2>The contest has not started yet</h2>
+  <p class="muted">The problems will appear here automatically when the contest starts. Please keep this page open.</p>
+</div>
+{% endif %}
+
+{% for lesson_name, items in lessons %}
+<div class="lesson-block">
+  <div class="lesson-title">{{ lesson_name }}</div>
+  {% for item in items %}
+  {% with p=item.problem st=item.status %}
+  <div class="prob-row {% if st.solved %}solved{% elif st.tries %}tried{% endif %}" data-pid="{{ p.id }}">
+    <span class="icon {% if st.solved %}solved{% elif st.tries %}tried{% endif %}">
+      {% if st.solved %}✓{% elif st.tries %}!{% endif %}
+    </span>
+    <span class="prob-title">
+      {{ p.seq }}. {{ p.title }}
+      <span class="diff diff-{{ p.level }}">{{ p.level }}</span>
+    </span>
+    <span class="prob-meta">{{ st.tries }} tries</span>
+    <a class="btn btn-ghost" href="{% url 'problem' p.slug %}">Open</a>
+  </div>
+  {% endwith %}
+  {% endfor %}
+</div>
+{% endfor %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+const INITIAL_STATE = "{{ contest.state_label }}";
+let contestState = INITIAL_STATE, remaining = {{ contest.remaining_seconds }};
+function updateProblems(d){
+  const probs = d.problems || [];
+  const solvedCount = probs.filter(p => p.solved).length;
+  const sc = document.getElementById("solvedCount");
+  if(sc) sc.textContent = solvedCount;
+  document.querySelectorAll(".prob-row[data-pid]").forEach(row=>{
+    const p = probs.find(x => String(x.id) === row.dataset.pid);
+    if(!p) return;
+    const solved = !!p.solved, tries = p.tries || 0;
+    row.classList.toggle("solved", solved);
+    row.classList.toggle("tried", !solved && tries > 0);
+    const icon = row.querySelector(".icon");
+    if(icon){
+      icon.classList.toggle("solved", solved);
+      icon.classList.toggle("tried", !solved && tries > 0);
+      icon.textContent = solved ? "✓" : (tries ? "!" : "");
+    }
+    const meta = row.querySelector(".prob-meta");
+    if(meta) meta.textContent = tries + " tries";
+  });
+}
+function renderTimer(){
+  const st = contestState, rem = Math.max(0, remaining|0);
+  document.getElementById("contestTimer").textContent =
+    st === "not_started" ? "--:--:--" :
+    st === "ended" ? "Ended" :
+    String(Math.floor(rem/3600)).padStart(2,"0")+":"+String(Math.floor(rem/60)%60).padStart(2,"0")+":"+String(rem%60).padStart(2,"0");
+  document.getElementById("contestTimer").classList.toggle("low", st === "running" && rem < 900);
+  const badge = document.getElementById("contestState");
+  badge.textContent = st.replace("_"," ").replace(/\b\w/g, c=>c.toUpperCase());
+  badge.className = "badge badge-" + st;
+}
+async function refreshData(){
+  try{
+    const r = await fetch("{% url 'api_leaderboard' %}");
+    if(r.status === 401 || r.redirected){ location.href = "{% url 'login' %}"; return; }
+    const d = await r.json();
+    remaining = d.contest.remaining;
+    contestState = d.contest.state;
+    if(INITIAL_STATE === "not_started" && contestState !== "not_started"){ location.reload(); return; }
+    renderTimer();
+    updateProblems(d);
+  }catch(e){}
+}
+setInterval(()=>{ if(contestState === "running"){ remaining--; renderTimer(); } }, 1000);
+renderTimer(); refreshData(); setInterval(refreshData, 5000);
+</script>
+{% endblock %}

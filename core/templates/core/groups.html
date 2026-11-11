@@ -1,0 +1,79 @@
+{% extends "core/base.html" %}
+{% block title %}Manage groups{% endblock %}
+{% block content %}
+<div class="admin-head">
+  <div>
+    <h1>Manage groups</h1>
+    <p class="muted">Create groups, rename them, and update passwords.</p>
+  </div>
+  <div class="admin-links">
+    <a href="{% url 'dashboard' %}" class="btn btn-ghost">Dashboard</a>
+    <a href="{% url 'admin:index' %}" class="btn btn-ghost">Django Admin</a>
+    <a href="{% url 'logout' %}" class="btn btn-danger">Logout</a>
+  </div>
+</div>
+
+{% if messages %}
+  {% for m in messages %}
+    <div class="alert {% if m.tags == 'error' %}alert-red{% else %}alert-green{% endif %}">{{ m.message }}</div>
+  {% endfor %}
+{% endif %}
+
+<div class="groups-layout">
+  <div class="groups-side">
+    <div class="control-card">
+      <h2 style="margin-top:0">Add group</h2>
+      <form method="post" action="{% url 'group_action' %}" class="manage-add">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="add_group">
+        <label class="field-label">Group name</label>
+        <input type="text" name="name" placeholder="e.g. Group 6" required>
+        <label class="field-label">Password</label>
+        <input type="password" name="password" placeholder="Set password" required>
+        <button class="btn btn-primary btn-block">Add group</button>
+      </form>
+      <p class="muted" style="margin-top:14px">New groups sign in from the login page with this name and password.</p>
+    </div>
+
+    <div class="control-card">
+      <h2 style="margin-top:0">Admin account</h2>
+      <p class="muted" style="margin-top:0">Signed in as <b>{{ request.user.username }}</b></p>
+      <form method="post" action="{% url 'group_action' %}">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="change_admin_password">
+        <label class="field-label">New admin password</label>
+        <input type="password" name="password" placeholder="New password" required>
+        <label class="field-label">Confirm password</label>
+        <input type="password" name="confirm" placeholder="Repeat password" required>
+        <button class="btn btn-primary btn-block">Update admin password</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="control-card">
+    <h2 style="margin-top:0">Existing groups</h2>
+    <p class="muted" style="margin-top:0">Changing a password logs out every device of that group. "Devices online" = devices active in the last 2 minutes.</p>
+    {% for item in groups %}
+    {% with g=item.g %}
+    <form method="post" action="{% url 'group_action' %}" class="group-pass-form">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="update_group">
+      <input type="hidden" name="group_id" value="{{ g.id }}">
+      <input type="text" name="name" value="{{ g.name }}" required>
+      <input type="password" name="password" placeholder="New password (optional)">
+      <button class="btn btn-ghost">Update</button>
+    </form>
+    <form method="post" action="{% url 'group_action' %}" style="display:flex;gap:10px;align-items:center;margin:-4px 0 14px">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="kick_devices">
+      <input type="hidden" name="group_id" value="{{ g.id }}">
+      <span class="muted" style="font-size:12px">Devices online: <b>{{ item.devices|length }}</b>{% if item.devices %} ({{ item.devices|join:", " }}){% endif %}</span>
+      <button class="btn btn-danger" style="padding:4px 10px;font-size:12px" onclick="return confirm('Log out every device signed in as {{ g.name|escapejs }}?')">Log out all devices</button>
+    </form>
+    {% endwith %}
+    {% empty %}
+    <p class="muted">No groups yet.</p>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
