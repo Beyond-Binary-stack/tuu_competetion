@@ -104,6 +104,11 @@ class ContestFlowTests(TestCase):
         self.assertEqual(self.c.post("/problem/team-welcome/run/", {"code": "print(1)"}).status_code, 403)
         self.assertEqual(self.c.post("/problem/team-welcome/submit/", {"code": "print(1)"}).status_code, 403)
 
+    def test_problem_page_redirects_to_challenges_after_acceptance(self):
+        self.start()
+        response = self.c.get("/problem/team-welcome/")
+        self.assertContains(response, 'location.href = "/problems/";')
+
     @override_settings(SUBMIT_COOLDOWN_SECONDS=60)
     def test_submit_accept_and_cooldown(self):
         self.start()

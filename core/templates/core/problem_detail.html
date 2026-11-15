@@ -16,15 +16,12 @@
     {% if problem.input_format %}
     <h3>Input</h3><p>{{ problem.input_format }}</p>
     {% endif %}
-    {% if problem.output_format %}
-    <h3>Output</h3><p>{{ problem.output_format }}</p>
-    {% endif %}
     <h3>Example</h3>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+    <div class="sample-grid">
       <div><div class="muted" style="font-size:12px">Input</div><pre>{{ sample_input }}</pre></div>
       <div><div class="muted" style="font-size:12px">Output</div><pre>{{ sample_output }}</pre></div>
     </div>
-    {% if problem.hint %}<div class="hint-box" style="margin-top:14px"><b>Hint:</b> {{ problem.hint }}</div>{% endif %}
+    {% if problem.hint %}<div id="sampleHint" hidden>{{ problem.hint|safe }}</div>{% endif %}
   </div>
 
   <div>
@@ -114,18 +111,17 @@ function guarded(fn){
 async function runSample(){
   showVerdict("run", "Running...", "", "");
   const d = await post("run", editor.getValue());
-  if(d.error === "contest_not_open"){ showVerdict("wa","The contest is not open right now.","",""); return; }
-  if(d.error){ showVerdict("err","Error","",`<pre class="err-box">${esc(d.error)}</pre>`); return; }
+  const hintNode = document.getElementById("sampleHint");
+  const hint = hintNode ? `<div class="hint-box result-hint"><b>Hint:</b> ${hintNode.innerHTML}</div>` : "";
+  if(d.error === "contest_not_open"){ showVerdict("wa","The contest is not open right now.","",hint); return; }
+  if(d.error){ showVerdict("err","Error","",`<pre class="err-box">${esc(d.error)}</pre>${hint}`); return; }
   const ok = !!d.passed;
-  if(d.status === "timeout"){ showVerdict("tle","Time Limit Exceeded","",`<p class="muted">Your code took more than 3 seconds. Check for an endless loop.</p>`); return; }
-  if(d.status === "blocked"){ showVerdict("wa","Blocked","",`<p>${esc(d.err)}</p>`); return; }
+  if(d.status === "timeout"){ showVerdict("tle","Time Limit Exceeded","",`<p class="muted">Your code took more than 3 seconds. Check for an endless loop.</p>${hint}`); return; }
+  if(d.status === "blocked"){ showVerdict("wa","Blocked","",`<p>${esc(d.err)}</p>${hint}`); return; }
   const verdict = ok ? ["ok","Sample passed ✓"] : ["wa","Wrong Answer"];
   const chips = `<span class="chip ${ok?"pass":"fail"}">Sample: ${ok?"Passed":"Failed"}</span>`;
-  const body = `<div class="cmp-grid">
-    <div><div class="lbl">Input</div><pre>${esc(d.input)}</pre></div>
-    <div><div class="lbl">Your output</div><pre>${esc(d.out)}</pre></div>
-    <div><div class="lbl">Expected</div><pre>${esc(d.expected)}</pre></div></div>
-    ${d.err ? `<pre class="err-box" style="margin-top:10px">${esc(d.err)}</pre>` : ""}`;
+  const body = `${ok ? "" : `<div class="run-output"><div class="lbl">Your output</div><pre>${esc(d.out)}</pre><p class="muted">Compare it with the sample output above.</p></div>`}
+    ${d.err ? `<pre class="err-box" style="margin-top:10px">${esc(d.err)}</pre>` : ""}${hint}`;
   showVerdict(verdict[0], verdict[1], chips, body);
 }
 
@@ -157,7 +153,7 @@ async function submit(){
     body = `<p>${esc(d.message||"")}</p>`;
   }
   showVerdict(cls, label[d.verdict] || d.verdict, chips, body);
-  if(d.verdict === "accepted") setTimeout(()=>location.reload(), 1200);
+  if(d.verdict === "accepted") setTimeout(()=>{ location.href = "{% url 'problems' %}"; }, 1200);
 }
 
 const STARTER = `{{ problem.starter_code|escapejs }}`;
