@@ -3,10 +3,10 @@
 {% block content %}
 <h1>Leaderboard</h1>
 <p class="muted">Most solved first. If tied, the group that reached that count first wins. Updates live.</p>
-<div class="contest-bar">
+{% if not group %}<div class="contest-bar">
   <span class="stat">Time left: <b id="contestTimer">--:--:--</b></span>
   <span class="badge badge-{{ contest.state_label }}" id="contestState">{{ contest.state_label|title }}</span>
-</div>
+</div>{% endif %}
 <table id="board">
   <thead>
     <tr>

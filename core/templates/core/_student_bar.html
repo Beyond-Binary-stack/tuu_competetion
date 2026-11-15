@@ -1,0 +1,58 @@
+<div class="sticky-bar" id="stickyBar">
+  <div class="sticky-inner">
+    <div class="sticky-stats">
+      <span class="stat"><b>{{ group.name }}</b></span>
+      <span class="stat">Solved: <b id="solvedCount">0</b> / <b id="totalCount">0</b></span>
+      <span class="stat">Time left: <b id="contestTimer">--:--:--</b></span>
+      <span class="badge badge-not_started" id="contestState">...</span>
+    </div>
+    <div class="num-grid" id="numGrid" hidden></div>
+  </div>
+</div>
+<script>
+(function(){
+  const m = location.pathname.match(/^\/problem\/([^/]+)\//);
+  const CURRENT = m ? decodeURIComponent(m[1]) : "";
+  let state = "not_started", remaining = 0;
+  const clock = s => { s = Math.max(0, s|0); return String(Math.floor(s/3600)).padStart(2,"0")+":"+String(Math.floor(s/60)%60).padStart(2,"0")+":"+String(s%60).padStart(2,"0"); };
+  function renderTimer(){
+    const t = document.getElementById("contestTimer");
+    t.textContent = state === "not_started" ? "--:--:--" : state === "ended" ? "Ended" : clock(remaining);
+    t.classList.toggle("low", state === "running" && remaining < 900);
+    const b = document.getElementById("contestState");
+    b.textContent = state.replace("_", " ").replace(/\b\w/g, c => c.toUpperCase());
+    b.className = "badge badge-" + state;
+  }
+  function renderGrid(d){
+    const grid = document.getElementById("numGrid");
+    const probs = d.problems || [];
+    document.getElementById("totalCount").textContent = probs.length;
+    document.getElementById("solvedCount").textContent = probs.filter(p => p.solved).length;
+    if(state === "not_started"){ grid.hidden = true; return; }
+    grid.hidden = false;
+    grid.innerHTML = "";
+    probs.forEach(p => {
+      const a = document.createElement("a");
+      const cls = p.solved ? "solved" : (p.tries ? "tried" : "");
+      a.className = "num " + cls + (p.slug === CURRENT ? " current" : "");
+      a.href = "/problem/" + encodeURIComponent(p.slug) + "/";
+      a.textContent = p.seq;
+      a.title = p.seq + ". " + p.title + (p.solved ? " (solved)" : p.tries ? " (" + p.tries + " tries)" : "");
+      grid.appendChild(a);
+    });
+  }
+  async function refresh(){
+    try{
+      const r = await fetch("{% url 'api_leaderboard' %}");
+      if(r.status === 401 || r.redirected){ location.href = "{% url 'login' %}"; return; }
+      const d = await r.json();
+      const prev = state;
+      remaining = d.contest.remaining; state = d.contest.state;
+      renderTimer(); renderGrid(d);
+      document.dispatchEvent(new CustomEvent("psc:data", {detail: {data: d, previousState: prev}}));
+    }catch(e){}
+  }
+  setInterval(() => { if(state === "running"){ remaining--; renderTimer(); } }, 1000);
+  renderTimer(); refresh(); setInterval(refresh, 5000);
+})();
+</script>

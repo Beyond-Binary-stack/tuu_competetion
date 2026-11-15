@@ -23,12 +23,16 @@
       {% endif %}
       {% if request.user.is_staff %}
         <a href="{% url 'dashboard' %}" class="{% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">Dashboard</a>
-        <a href="{% url 'admin:index' %}">Admin</a>
+        <a href="{% url 'groups_manage' %}" class="{% if request.resolver_match.url_name == 'groups_manage' %}active{% endif %}">Groups</a>
+        <a href="{% url 'leaderboard' %}" class="{% if request.resolver_match.url_name == 'leaderboard' %}active{% endif %}">Leaderboard</a>
+        <a href="{% url 'results_screen' %}" target="_blank">Results screen</a>
+        <a href="{% url 'admin:index' %}">Django Admin</a>
       {% endif %}
       <a href="{% url 'logout' %}" class="logout">Logout</a>
     {% endif %}
   </nav>
 </header>
+{% if group and not request.user.is_staff %}{% include "core/_student_bar.html" %}{% endif %}
 
 <main class="container">
 {% block content %}{% endblock %}

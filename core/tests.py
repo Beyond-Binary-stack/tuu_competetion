@@ -50,6 +50,12 @@ class RunnerTests(TestCase):
         self.assertNotIn("exec(", r["err"])
         self.assertEqual(runner.run_code("print(input())", "")["returncode"], 1)
 
+    def test_running_out_of_input_shows_friendly_message(self):
+        r = runner.run_code("for i in range(5):\n    input()", "a")
+        self.assertEqual(r["returncode"], 1)
+        self.assertIn("asked for more input", r["err"])
+        self.assertNotIn("Traceback", r["err"])
+
     def test_numbers_compare_by_value(self):
         m = runner.outputs_match
         self.assertTrue(m("Total: 120.0\n", "Total: 120\n"))
@@ -108,6 +114,22 @@ class ContestFlowTests(TestCase):
         self.start()
         response = self.c.get("/problem/team-welcome/")
         self.assertContains(response, 'location.href = "/problems/";')
+
+    def test_sticky_bar_grid_and_problem_navigation(self):
+        self.start()
+        for url in ["/problems/", "/problem/team-welcome/", "/leaderboard/"]:
+            self.assertContains(self.c.get(url), 'id="stickyBar"', msg_prefix=url)
+        probs = self.c.get("/api/leaderboard/").json()["problems"]
+        self.assertEqual([p["seq"] for p in probs], list(range(1, len(PROBLEMS) + 1)))
+        first = self.c.get("/problem/%s/" % probs[0]["slug"])
+        self.assertNotContains(first, "&larr; Previous")
+        self.assertContains(first, "/problem/%s/" % probs[1]["slug"])
+        last = self.c.get("/problem/%s/" % probs[-1]["slug"])
+        self.assertContains(last, "&larr; Previous")
+        self.assertNotContains(last, "Next problem")
+        a = self.client_class()
+        a.post("/login/", {"username": "boss", "password": "bosspw"})
+        self.assertNotContains(a.get("/leaderboard/"), 'id="stickyBar"')
 
     @override_settings(SUBMIT_COOLDOWN_SECONDS=60)
     def test_submit_accept_and_cooldown(self):

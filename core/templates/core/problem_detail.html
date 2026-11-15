@@ -1,6 +1,13 @@
 {% extends "core/base.html" %}
 {% block title %}{{ problem.title }}{% endblock %}
 {% block content %}
+<div class="problem-nav">
+  <a class="btn btn-ghost" href="{% url 'problems' %}">&larr; All problems</a>
+  <div class="problem-nav-steps">
+    {% if prev_problem %}<a class="btn btn-ghost" href="{% url 'problem' prev_problem.slug %}">&larr; Previous</a>{% endif %}
+    {% if next_problem %}<a class="btn btn-primary" href="{% url 'problem' next_problem.slug %}">Next problem &rarr;</a>{% endif %}
+  </div>
+</div>
 <div class="problem-layout">
   <div class="statement panel">
     <h1>{{ problem.seq }}. {{ problem.title }}

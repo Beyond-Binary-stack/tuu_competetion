@@ -58,6 +58,9 @@ try:
     exec(compile(_src, "main.py", "exec"), {{"__name__": "__main__"}})
 except SystemExit:
     raise
+except EOFError:
+    print("Your program asked for more input than this test gives. Your loop probably runs more times than it should (for example, it must stop after 3 wrong tries). Check the loop condition.", file=sys.stderr)
+    sys.exit(1)
 except BaseException as e:
     import traceback
     traceback.print_exception(type(e), e, e.__traceback__.tb_next)

@@ -196,6 +196,8 @@ def problem_detail(request, slug):
     sample = problem.sample_test
     return render(request, "core/problem_detail.html", {
         "group": group, "problem": problem, "contest": Contest.get(),
+        "prev_problem": Problem.objects.filter(seq__lt=problem.seq).order_by("-seq").first(),
+        "next_problem": Problem.objects.filter(seq__gt=problem.seq).order_by("seq").first(),
         "saved_code": saved.code if saved else problem.starter_code,
         "status": status,
         "sample_input": sample.input_text if sample else "",
@@ -557,6 +559,7 @@ def api_leaderboard(request):
         "problems": [
             {
                 "id": p.id,
+                "seq": p.seq,
                 "title": p.title,
                 "level": p.level,
                 "slug": p.slug,
