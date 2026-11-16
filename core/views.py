@@ -11,6 +11,7 @@ from django.http import JsonResponse
 from urllib.parse import urlencode
 
 from django.shortcuts import redirect, render, get_object_or_404
+from django.template.loader import render_to_string
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 from django.utils import timezone
@@ -372,8 +373,7 @@ def leaderboard(request):
     })
 
 
-@user_passes_test(is_staff_user)
-def dashboard(request):
+def _dashboard_context():
     rows, problems = _group_stats()
     contest = Contest.get()
     all_subs = Submission.objects.select_related("group", "problem").order_by("-created_at")[:50]
@@ -391,10 +391,26 @@ def dashboard(request):
         "contest_pct": max(0, min(100, round(contest.elapsed_seconds() / contest.duration_seconds * 100))),
     }
     rows = [dict(r, devices=len(security.online_devices(r["group"].pk))) for r in rows]
-    return render(request, "core/dashboard.html", {
+    return {
         "rows": rows, "top_rows": rows[:5], "problems": problems, "contest": contest,
-        "recent": all_subs, "groups": Group.objects.all(), "stats": stats,
-        "debug": settings.DEBUG,
+        "recent": all_subs, "stats": stats,
+    }
+
+
+@user_passes_test(is_staff_user)
+def dashboard(request):
+    return render(request, "core/dashboard.html", dict(_dashboard_context(), debug=settings.DEBUG))
+
+
+@user_passes_test(is_staff_user)
+def api_dashboard(request):
+    ctx = _dashboard_context()
+    contest = ctx["contest"]
+    return JsonResponse({
+        "contest": {"state": contest.state_label(), "remaining": contest.remaining_seconds(),
+                    "elapsed": contest.elapsed_seconds()},
+        "stats": render_to_string("core/_dash_stats.html", ctx, request=request),
+        "tables": render_to_string("core/_dash_tables.html", ctx, request=request),
     })
 
 

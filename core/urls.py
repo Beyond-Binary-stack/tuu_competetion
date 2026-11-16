@@ -17,5 +17,6 @@ urlpatterns = [
     path("api/group-action/", views.group_action, name="group_action"),
     path("api/leaderboard/", views.api_leaderboard, name="api_leaderboard"),
     path("api/status/", views.api_status, name="api_status"),
+    path("api/dashboard/", views.api_dashboard, name="api_dashboard"),
     path("results/", views.results_screen, name="results_screen"),
 ]

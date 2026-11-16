@@ -1,0 +1,20 @@
+<div class="live-stats">
+  <div class="live-stat"><span>Groups</span><b>{{ stats.groups }}</b></div>
+  <div class="live-stat"><span>Solves</span><b>{{ stats.solves }}<small>/{{ stats.possible }}</small></b></div>
+  <div class="live-stat"><span>Submissions</span><b>{{ stats.submissions }}</b></div>
+  <div class="live-stat"><span>Accepted</span><b>{{ stats.accepted }}<small>{{ stats.accept_rate }}%</small></b></div>
+</div>
+
+<div class="live-standings">
+  <div class="live-standings-title">Live standings</div>
+  {% for r in top_rows %}
+  <div class="standing-row">
+    <span class="s-rank rank-{{ forloop.counter }}">#{{ forloop.counter }}</span>
+    <span class="s-name">{{ r.group.name }}</span>
+    <span class="s-bar"><span style="width:{{ r.pct }}%"></span></span>
+    <span class="s-pct">{{ r.solved }}/{{ problems|length }} · {{ r.pct }}%</span>
+  </div>
+  {% empty %}
+  <div class="muted" style="color:rgba(255,255,255,.6)">No groups yet.</div>
+  {% endfor %}
+</div>

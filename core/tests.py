@@ -168,6 +168,19 @@ class ContestFlowTests(TestCase):
         a.post("/api/contest-action/", {"action": "simulate"})
         self.assertEqual(Submission.objects.count(), 0)
 
+    def test_dashboard_live_endpoint_updates_after_submit(self):
+        self.start()
+        a = self.client_class()
+        a.post("/login/", {"username": "boss", "password": "bosspw"})
+        before = a.get("/api/dashboard/").json()
+        self.assertIn("Live standings", before["stats"])
+        self.assertNotIn("Team Welcome", before["tables"])
+        self.c.post("/problem/team-welcome/submit/", {"code": PROBLEMS[0]["solution"]})
+        after = a.get("/api/dashboard/").json()
+        self.assertIn("Team Welcome", after["tables"])
+        self.assertIn("Accepted", after["tables"])
+        self.assertEqual(self.c.get("/api/dashboard/").status_code, 302)
+
     def test_old_group_hash_is_upgraded_on_login(self):
         from django.contrib.auth.hashers import make_password
         self.group.password = make_password("old")

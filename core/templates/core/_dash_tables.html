@@ -1,0 +1,40 @@
+<div>
+  <h2>Groups</h2>
+  <table>
+    <thead><tr><th>#</th><th>Group</th><th>Solved</th><th>Progress</th><th>Easy</th><th>Med</th><th>Hard</th><th>Tries</th><th>Devices</th><th>Last solve at</th></tr></thead>
+    <tbody>
+      {% for r in rows %}
+      <tr>
+        <td class="rank rank-{{ forloop.counter }}">#{{ forloop.counter }}</td>
+        <td><b>{{ r.group.name }}</b></td>
+        <td><b>{{ r.solved }}</b> / {{ problems|length }}</td>
+        <td style="min-width:120px">
+          <div class="mini-bar"><span style="width:{{ r.pct }}%"></span></div>
+          <span class="muted" style="font-size:11px">{{ r.pct }}%</span>
+        </td>
+        <td>{{ r.per_level.easy }}</td><td>{{ r.per_level.medium }}</td><td>{{ r.per_level.hard }}</td>
+        <td>{{ r.tries }}</td>
+        <td>{{ r.devices }}</td>
+        <td class="mono">{% if r.reach_time != None %}{{ r.reach_time }}s{% else %}-{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h2 style="margin-top:26px">Recent submissions</h2>
+  <table>
+    <thead><tr><th>Time</th><th>Group</th><th>Problem</th><th>Status</th><th>At</th></tr></thead>
+    <tbody>
+      {% for s in recent %}
+      <tr>
+        <td class="mono">{{ s.created_at|date:"H:i:s" }}</td>
+        <td>{{ s.group.name }}</td>
+        <td>{{ s.problem.title }}</td>
+        <td>{% if s.status == "accepted" %}<span style="color:var(--green-mid);font-weight:700">Accepted</span>{% else %}<span style="color:var(--red-mid)">{{ s.status }}</span>{% endif %}</td>
+        <td class="mono">{{ s.contest_elapsed }}s</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p><a href="{% url 'leaderboard' %}">View student leaderboard →</a></p>
+</div>
